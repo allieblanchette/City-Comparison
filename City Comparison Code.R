@@ -9,6 +9,9 @@ library(naniar)
 library(scales)
 
 
+#commit #2 on 4/23 (test)
+
+
 #lab computer 245
 setwd("C:\\Users\\ablanch4\\Dropbox\\Time V Money\\SLC Comparison\\")
 

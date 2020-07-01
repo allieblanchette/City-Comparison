@@ -5,15 +5,13 @@ library(reshape)
 library(ggplot2)
 library(vegan)
 library(naniar)
+library(cowplot)
 
 library(scales)
 
 
-#commit #2 on 4/23 (test)
-
-
 #lab computer 245
-setwd("C:\\Users\\ablanch4\\Dropbox\\Time V Money\\SLC Comparison\\")
+#setwd("C:\\Users\\ablanch4\\Dropbox\\Time V Money\\SLC Comparison\\")
 
 #Allie's laptop
 setwd("C:\\Users\\Allie\\Dropbox\\Time V Money\\SLC Comparison\\")
@@ -21,317 +19,80 @@ setwd("C:\\Users\\Allie\\Dropbox\\Time V Money\\SLC Comparison\\")
 #remove gray background in plots
 theme_set(theme_bw(12))
 
-#Baltimore Data read in and merging
-BAL_AllSurveys_raw<-read.csv("BAL_Surveys_200407.csv") %>% 
-  select(-Clean, -Notes.Comments) %>% 
-  mutate(House_ID1=House_ID) %>% 
-  separate(House_ID1, c("Nb", "House"))
-
+#Baltimore Data read in
 B_nbinfo<-read.csv("BAL_NB_Codes_200407.csv") %>% 
   mutate(Nb=as.character(Nb),
          Med_Inc=med_inc,
          Nb=recode(Nb, "34"="0034")) %>% 
   select(Nb, Style, med_age, nb_inc, Med_Inc, size, yard_area)
 
-BAL_Surveys<-BAL_AllSurveys_raw %>% 
-  mutate(City="Baltimore")%>% 
-  select(City, House_ID, Nb, A1, A201, A202, A203, A204, A205, A206, A207, A301, A302, A303, A4, A5, A6, A701, A702, A703, A704, A705, A706, A707, A708, A709, A710, B101, B102, B103, B104, B105, B106, B107, B108, B201, B202, B203, B204, B205, B206, B207, B301, B302, B401, B402, C5, C601)
+BAL_Surveys<-read.csv("BAL_Surveys.csv")
 
-All_Diversity_House_Balt<-read.csv("BAL_All_Diversity_House_200407.csv") %>% 
-  mutate(Nb=as.character(Nb),
-         Nb=recode(Nb, "34"="0034"),
-         House_ID=paste(Nb, House, sep="_"))
+All_Diversity_House_Balt<-read.csv("All_Diversity_House_Balt.csv") 
 
-BAL_Direct<-All_Diversity_House_Balt %>% 
-  left_join(BAL_Surveys) %>% 
-  left_join(B_nbinfo) %>% 
-  mutate(Flower_Color=as.numeric(as.character(A702)),
-         Biodiversity=as.numeric(as.character(A6)))
+BAL_Direct<-read.csv("BAL_Direct.csv")
 
-B_F_data1<-read.csv("BAL_Floral_Data_Balt18_clean_AB_200410.csv") %>% 
-  mutate(num_plants=X..F.plants)
+B_F_data1<-read.csv("B_F_data1.csv")
 
-BAL_Trees_raw<-read.csv("BAL_Trees_Balt18_FB_clean_200413.csv") %>% 
-  mutate(Nb=as.character(NB),
-         Nb=recode(Nb, "34"="0034"),
-         House_ID=paste(Nb,House, sep="_"),
-         Species=Tree.species)
+BAL_Trees_raw<-read.csv("BAL_Trees_raw.csv")
 
-BAL_Lawns_raw<-read.csv("BAL_Lawn Quadrats_Balt18_AB_200407.csv") %>% 
-  mutate(City="Baltimore",
-         House_ID=paste(NB, House, sep="_"),
-         Species=Species.combined,
-         Nb=as.character(NB),
-         Nb=recode(Nb, "34"="0034"),
-         House_ID=paste(Nb, House, sep="_"))
+BAL_Lawns_raw<-read.csv("BAL_Lawns_raw.csv")
+
+
 
 #Salt Lake data read in and merging
-SLC_AllSurveys_raw<-read.csv("SLC_2014 Homeowner_Survey Data_Final_homeowner ID intact_200407.csv") %>% 
-  select(PARCEL_ID, A1, A201, A202, A203, A204, A205, A206, A207, A208, A301, A302, A303, A6, A7, A8, A901, A902, A903, A904, A905, A906, A907, A908, A909, A910, B101, B102, B103, B104, B105, B106, B107, B108, B201, B202, B203, B204, B205, B206, B207, B301, B302, B401, B402, D1, D2, D301, D4, D601A, D601B)
-
 S_nbinfo<-read.csv("SLC_NB_details_200407.csv") %>% 
-  select(-X) %>% 
+  select(-X, -Type) %>% 
   mutate(Nb=as.character(Nb))
-S_parcels<-read.csv("SLC_Parcel_Info_200407.csv")%>% 
-  mutate(Nb=NB_ID) %>% 
-  filter(Responded!="REPEAT") %>% 
-  select(Nb, House_ID, PARCEL_ID, Home_Value) %>% 
-  separate(House_ID, c("Nb1","Block","House")) %>% 
-  mutate(House_ID=paste(Nb1, Block, House, sep = "_"),
-         House_ID=as.character(House_ID)) %>% 
-  select(-Nb1) %>% 
-  replace_with_na(replace = list(House_ID = "_NA_NA"))
 
-SLC_Surveys<-merge(S_parcels, SLC_AllSurveys_raw, by="PARCEL_ID", all=F) %>% 
-  mutate(City="Salt Lake City")
+SLC_Surveys<-read.csv("SLC_Surveys.csv")
 
 SLC_Direct<-read.csv("SLC_Direct_house_200407.csv") %>% 
   mutate(City="SLC",
          Flower_Color=as.numeric(as.character(A902)),
          Biodiversity=as.numeric(as.character(A8)))
 
-S_F_data<-read.csv("SLC_Floral_data_all_cleaning_AMB_200410.csv")%>%
-  filter(Nb!="NA")%>%
-  filter(House_ID!="387_11_4")#drop b/c extra sampling point
+S_F_data1<-read.csv("S_F_data1.csv")
 
-S_F_data1<-S_F_data%>%
-  mutate(num_flowering_stem=as.numeric(X.F.stems),
-         flower_width=as.numeric(as.character(Flower.Width..cm.)),
-         flower_length=as.numeric(as.character(Flower.Length..cm.)),
-         flower_size=(flower_width*flower_length),
-         num_flowers=num_flowering_stem*ave_flower_perstem,
-         num_plants = X..F.plants,
-         TotalFlower_area=(flower_size*num_flowers)/10000,
-         Native_bin=as.numeric(as.character(Native_man)),
-         Native_plants=Native_bin*num_plants,
-         Water_man=as.numeric(as.character(Water_man)),
-         City="Salt Lake City",
-         Nb=as.character(Nb),
-         FaGe=paste(Family, Genus, sep="_"))%>%
-  select(City, Nb, Block, House_ID, Family, Genus, FaGe, Front.Back, Water_man, Native_plants, Native_bin, num_flowers, num_plants, color1, color2, TotalFlower_area, flower_size, Inf.Type, Symmetry, flowertype, photo_ID, notes)
+SLC_Lawns_raw<-read.csv("SLC_Lawns_raw.csv")
 
-SLC_Trees_raw<-read.csv("SLC_ResTrees_200403.csv") %>% 
-  mutate(City="Salt Lake City",
-         Nb=as.character(Nb))
-
-SLC_Lawns_raw<-read.csv("SLC_Lawns2014_200407.csv")%>%
-  filter(House_ID!="387_11_4",
-         House_ID!="651_1_4") %>% 
-  mutate(City="Salt Lake City",
-         Nb=as.character(Nb))
-
-#Average preferences data set up
-S_Prefs_avg<-melt(SLC_Surveys, id=c("PARCEL_ID","House_ID","Nb", "Block", "House", "City"))%>%
-  mutate(value2=(as.numeric(as.character(value))))%>%
-  group_by(City, variable)%>%
-  summarize(Importance=mean(value2, na.rm=T),
-            sd=sd(as.numeric(value2), na.rm=T),
-            n=length(value2[!is.na(value2)]))%>%
-  mutate(se=sd/sqrt(n))%>%
-  mutate(variable=recode(variable, A1="Satisfaction"),
-         variable=recode(variable, A201="Unattractive"),
-         variable=recode(variable, A202="Plant types"),
-         variable=recode(variable, A203="Effort"),
-         variable=recode(variable, A204="Time"),
-         variable=recode(variable, A206="Money"),
-         variable=recode(variable, A207="Too small"),
-         variable=recode(variable, A208="Too large"),
-         variable=recode(variable, A301="Similar"),
-         variable=recode(variable, A302="Different"),
-         variable=recode(variable, A303="Unsure/Neutral"),
-         variable=recode(variable, A6="Natives"),
-         variable=recode(variable, A7="Variety"),
-         variable=recode(variable, A8="Biodiversity"),
-         variable=recode(variable, A901="Leaf Color"),
-         variable=recode(variable, A902="Flower Color"),
-         variable=recode(variable, A903="Flower Type"),
-         variable=recode(variable, A904="Plant Shape"),
-         variable=recode(variable, A905="Plant Height"),
-         variable=recode(variable, A906="Seasonal Color"),
-         variable=recode(variable, A907="Leaf Texture"),
-         variable=recode(variable, A908="Plant Type"),
-         variable=recode(variable, A909="Tree Species"),
-         variable=recode(variable, A910="Ornamental Species"),
-         variable=recode(variable, B101="Shade"),
-         variable=recode(variable, B102="Fruit"),
-         variable=recode(variable, B103="Flowers"),
-         variable=recode(variable, B104="Play/relax"),
-         variable=recode(variable, B105="Wind break"),
-         variable=recode(variable, B106="Aroma"),
-         variable=recode(variable, B107="Beauty"),
-         variable=recode(variable, B108="Habitat"),
-         variable=recode(variable, B201="Debris"),
-         variable=recode(variable, B202="Reduce night vis"),
-         variable=recode(variable, B203="Water use"),
-         variable=recode(variable, B204="Sidewalk damage"),
-         variable=recode(variable, B205="Blocks views"),
-         variable=recode(variable, B206="Pollen"),
-         variable=recode(variable, B207="Cost"),
-         variable=recode(variable, D1="Lawn Co F"),
-         variable=recode(variable, D2="Personally F"))
+SLC_Trees_raw<-read.csv("SLC_Trees_raw.csv")
 
 
-B_Prefs_avg<-melt(BAL_Surveys, id=c("House_ID","Nb", "City"))%>%
-  mutate(value2=(as.numeric(as.character(value))))%>%
-  group_by(City, variable)%>%
-  summarize(Importance=mean(value2, na.rm=T),
-            sd=sd(as.numeric(value2), na.rm=T),
-            n=length(value2[!is.na(value2)]))%>%
-  mutate(se=sd/sqrt(n))%>%
-  mutate(variable=recode(variable, A1="Satisfaction"),
-         variable=recode(variable, A201="Unattractive"),
-         variable=recode(variable, A202="Plant types"),
-         variable=recode(variable, A203="Effort"),
-         variable=recode(variable, A204="Time"),
-         variable=recode(variable, A205="Money"),
-         variable=recode(variable, A206="Too small"),
-         variable=recode(variable, A207="Too large"),
-         variable=recode(variable, A301="Similar"),
-         variable=recode(variable, A302="Different"),
-         variable=recode(variable, A303="Unsure/Neutral"),
-         variable=recode(variable, A4="Natives"),
-         variable=recode(variable, A5="Variety"),
-         variable=recode(variable, A6="Biodiversity"),
-         variable=recode(variable, A701="Leaf Color"),
-         variable=recode(variable, A702="Flower Color"),
-         variable=recode(variable, A703="Flower Type"),
-         variable=recode(variable, A704="Plant Shape"),
-         variable=recode(variable, A705="Plant Height"),
-         variable=recode(variable, A706="Seasonal Color"),
-         variable=recode(variable, A707="Leaf Texture"),
-         variable=recode(variable, A708="Plant Type"),
-         variable=recode(variable, A709="Tree Species"),
-         variable=recode(variable, A710="Ornamental Species"),
-         variable=recode(variable, B101="Shade"),
-         variable=recode(variable, B102="Fruit"),
-         variable=recode(variable, B103="Flowers"),
-         variable=recode(variable, B104="Play/relax"),
-         variable=recode(variable, B105="Wind break"),
-         variable=recode(variable, B106="Aroma"),
-         variable=recode(variable, B107="Beauty"),
-         variable=recode(variable, B108="Habitat"),
-         variable=recode(variable, B201="Debris"),
-         variable=recode(variable, B202="Reduce night vis"),
-         variable=recode(variable, B203="Water use"),
-         variable=recode(variable, B204="Sidewalk damage"),
-         variable=recode(variable, B205="Blocks views"),
-         variable=recode(variable, B206="Pollen"),
-         variable=recode(variable, B207="Cost"),
-         variable=recode(variable, C5="Lawn Co F"),
-         variable=recode(variable, C601="Personally F"))
+#Average preferences data read in 
+S_Prefs_avg<-read.csv("S_Prefs_avg.csv")
 
-CC_Prefs_avg<-B_Prefs_avg %>% 
-  full_join(S_Prefs_avg)
+B_Prefs_avg<-read.csv("B_Prefs_avg.csv")
 
-write.csv(CC_Prefs_avg, file = "CC_Prefs_avg.csv", row.names = F)
+CC_Prefs_avg<-read.csv("CC_Prefs_avg.csv")
 
-#Preferences by income data set up
-S_Prefs_inc<-melt(SLC_Surveys, id=c("PARCEL_ID","House_ID","Nb", "Block", "House", "City"))%>%
-  mutate(value2=(as.numeric(as.character(value))),
-         Nb=as.character(Nb))%>%
-  left_join(S_nbinfo) %>% 
-  group_by(City, Med_Inc, variable)%>%
-  summarize(Importance=mean(value2, na.rm=T),
-            sd=sd(as.numeric(value2), na.rm=T),
-            n=length(value2[!is.na(value2)]))%>%
-  mutate(se=sd/sqrt(n))%>%
-  mutate(variable=recode(variable, A1="Satisfaction"),
-         variable=recode(variable, A201="Unattractive"),
-         variable=recode(variable, A202="Plant types"),
-         variable=recode(variable, A203="Effort"),
-         variable=recode(variable, A204="Time"),
-         variable=recode(variable, A206="Money"),
-         variable=recode(variable, A207="Too small"),
-         variable=recode(variable, A208="Too large"),
-         variable=recode(variable, A301="Similar"),
-         variable=recode(variable, A302="Different"),
-         variable=recode(variable, A303="Unsure/Neutral"),
-         variable=recode(variable, A6="Natives"),
-         variable=recode(variable, A7="Variety"),
-         variable=recode(variable, A8="Biodiversity"),
-         variable=recode(variable, A901="Leaf Color"),
-         variable=recode(variable, A902="Flower Color"),
-         variable=recode(variable, A903="Flower Type"),
-         variable=recode(variable, A904="Plant Shape"),
-         variable=recode(variable, A905="Plant Height"),
-         variable=recode(variable, A906="Seasonal Color"),
-         variable=recode(variable, A907="Leaf Texture"),
-         variable=recode(variable, A908="Plant Type"),
-         variable=recode(variable, A909="Tree Species"),
-         variable=recode(variable, A910="Ornamental Species"),
-         variable=recode(variable, B101="Shade"),
-         variable=recode(variable, B102="Fruit"),
-         variable=recode(variable, B103="Flowers"),
-         variable=recode(variable, B104="Play/relax"),
-         variable=recode(variable, B105="Wind break"),
-         variable=recode(variable, B106="Aroma"),
-         variable=recode(variable, B107="Beauty"),
-         variable=recode(variable, B108="Habitat"),
-         variable=recode(variable, B201="Debris"),
-         variable=recode(variable, B202="Reduce night vis"),
-         variable=recode(variable, B203="Water use"),
-         variable=recode(variable, B204="Sidewalk damage"),
-         variable=recode(variable, B205="Blocks views"),
-         variable=recode(variable, B206="Pollen"),
-         variable=recode(variable, B207="Cost"),
-         variable=recode(variable, D1="Lawn Co F"),
-         variable=recode(variable, D2="Personally F"))
+CC_nbinfo<-read.csv("CC_nbinfo.csv")
 
-B_Prefs_inc<-melt(BAL_Surveys, id=c("House_ID","Nb", "City"))%>%
-  mutate(value2=(as.numeric(as.character(value))))%>%
-  left_join(B_nbinfo) %>% 
-  group_by(City, Med_Inc, variable)%>%
-  summarize(Importance=mean(value2, na.rm=T),
-            sd=sd(as.numeric(value2), na.rm=T),
-            n=length(value2[!is.na(value2)]))%>%
-  mutate(se=sd/sqrt(n))%>%
-  mutate(variable=recode(variable, A1="Satisfaction"),
-         variable=recode(variable, A201="Unattractive"),
-         variable=recode(variable, A202="Plant types"),
-         variable=recode(variable, A203="Effort"),
-         variable=recode(variable, A204="Time"),
-         variable=recode(variable, A205="Money"),
-         variable=recode(variable, A206="Too small"),
-         variable=recode(variable, A207="Too large"),
-         variable=recode(variable, A301="Similar"),
-         variable=recode(variable, A302="Different"),
-         variable=recode(variable, A303="Unsure/Neutral"),
-         variable=recode(variable, A4="Natives"),
-         variable=recode(variable, A5="Variety"),
-         variable=recode(variable, A6="Biodiversity"),
-         variable=recode(variable, A701="Leaf Color"),
-         variable=recode(variable, A702="Flower Color"),
-         variable=recode(variable, A703="Flower Type"),
-         variable=recode(variable, A704="Plant Shape"),
-         variable=recode(variable, A705="Plant Height"),
-         variable=recode(variable, A706="Seasonal Color"),
-         variable=recode(variable, A707="Leaf Texture"),
-         variable=recode(variable, A708="Plant Type"),
-         variable=recode(variable, A709="Tree Species"),
-         variable=recode(variable, A710="Ornamental Species"),
-         variable=recode(variable, B101="Shade"),
-         variable=recode(variable, B102="Fruit"),
-         variable=recode(variable, B103="Flowers"),
-         variable=recode(variable, B104="Play/relax"),
-         variable=recode(variable, B105="Wind break"),
-         variable=recode(variable, B106="Aroma"),
-         variable=recode(variable, B107="Beauty"),
-         variable=recode(variable, B108="Habitat"),
-         variable=recode(variable, B201="Debris"),
-         variable=recode(variable, B202="Reduce night vis"),
-         variable=recode(variable, B203="Water use"),
-         variable=recode(variable, B204="Sidewalk damage"),
-         variable=recode(variable, B205="Blocks views"),
-         variable=recode(variable, B206="Pollen"),
-         variable=recode(variable, B207="Cost"),
-         variable=recode(variable, C5="Lawn Co F"),
-         variable=recode(variable, C601="Personally F"))
+#Preferences by home value data set up (can add in parcel_area here)
+S_Prefs_parcel<-read.csv("S_Prefs_parcel.csv")
+  
+#NEED TO ADD IN PARCEL_AREA
+B_Prefs_parcel<-read.csv("B_Prefs_parcel.csv")
+  
+CC_Prefs_parcel<-read.csv("CC_Prefs_parcel.csv")
 
-CC_Prefs_inc<-B_Prefs_inc %>% 
-  full_join(S_Prefs_inc)
+#Preferences by nb median income data set up
+S_Prefs_inc<-read.csv("S_Prefs_inc.csv")
 
-#Section A: Landscaping preferences (average)
-#A1: How satisfied are you with your current landscaping?
+B_Prefs_inc<-read.csv("B_Prefs_inc.csv")
+
+CC_Prefs_inc<-read.csv("CC_Prefs_inc.csv")
+
+#Richness/Abundance data frames
+CC_rich_abund<-read.csv("CC_rich_abund.csv")
+
+CC_ra_MedInc<-read.csv("CC_ra_MedInc.csv")
+
+#Section A: Landscaping preferences
+summary(m1<-lm(Importance~City*Med_Inc, data= CC_Prefs_inc, subset=(variable=="Leaf Texture")))
+anova(m1)
+
+#A1 by city: How satisfied are you with your current landscaping?
 ggplot(subset(CC_Prefs_avg, variable%in%c("Satisfaction")), aes(x=City, y=Importance)) + 
   geom_bar(stat="identity", aes(fill=City))+ 
   scale_fill_manual(values=c("steelblue3","goldenrod2"))+
@@ -348,7 +109,75 @@ ggplot(subset(CC_Prefs_avg, variable%in%c("Satisfaction")), aes(x=City, y=Import
         legend.text = element_blank(),
         legend.position="none")
 
-#A2: If you are disatisfied with your yard, why?
+#A1 by home value (only have home_value for 96 of the Balt houses)
+ggplot(subset(CC_Prefs_parcel, variable%in%c("Satisfaction")), aes(x=Home_Value, y=value2, group=City)) + 
+  geom_point(position=position_jitter(0.55), size=2, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  xlab("Home Value")+
+  ylab("Satisfaction with Yard")+
+  ylim(-2.5, 2.5)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())
+
+#Data isn't normal, not sure if pearson is the correct analysis for likert type data anyway
+# cor.test(formula = ~ value2+Home_Value,
+#          data = B_Prefs_parcel,
+#          subset=variable=="Satisfaction")
+
+#A1 by Median Income (IS normally distributed)
+ggplot(subset(CC_Prefs_inc, variable%in%c("Satisfaction")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("Satisfaction with Yard")+
+  ylim(-2.5, 2.5)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())
+
+cor.test(formula = ~ Importance+Med_Inc,
+         data = B_Prefs_inc,
+         subset=variable=="Satisfaction")
+
+CC_Satis_nbinc<-CC_Prefs_inc %>% 
+  filter(variable=="Satisfaction") %>% 
+  group_by(City, nb_inc) %>% 
+  summarize(mean.Satisfaction=mean(Importance),
+            n=length(Importance),
+            sd=sd(Importance)) %>% 
+  mutate(se=sd/sqrt(n))
+
+ggplot(CC_Satis_nbinc, aes(x=nb_inc, y=mean.Satisfaction, fill=City)) + 
+  geom_bar(stat="identity", aes(fill=City), position="dodge")+
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+
+  xlab("Income")+
+  ylab("Satisfaction with Yard")+
+  ylim(-2.5, 2.5)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())
+
+summary(m1<-lm(Importance~nb_inc, data= S_Prefs_inc, subset=(variable=="Satisfaction")))
+anova(m1)
+
+#A2 by city: If you are disatisfied with your yard, why?
 ggplot(subset(B_Prefs_avg, variable%in%c("Unattractive","Plant types", "Effort", "Time", "Money", "Too small", "Too large")), aes(x= reorder(variable, Importance), y=Importance)) + 
   coord_flip()+
   geom_bar(stat="identity",fill="steelblue3" )+ 
@@ -381,7 +210,55 @@ ggplot(subset(S_Prefs_avg, variable%in%c("Unattractive","Plant types", "Effort",
   geom_hline(yintercept = 0.25, linetype="dotted")+
   ggtitle("Salt Lake City")
 
-#A3: Do you prefer neighborhoods with houses that all look...
+#A2 by nb income
+cor.test(formula = ~ Importance+Med_Inc,
+         data = B_Prefs_inc,
+         subset=variable=="Plant types")
+
+#reasons correlated with income: Time (SLC), Too large (SLC marginal)
+CC_Time_inc<-CC_Prefs_inc %>% 
+  filter(variable=="Time")
+
+ggplot(subset(CC_Prefs_inc, variable%in%c("Time")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_Time_inc, City=="Salt Lake City"), method="lm", se=F, color="goldenrod2")+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("My yard takes too much time Y/N")+
+  scale_y_continuous(limits=c(0,1.3), breaks=c(0,1))+ 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.5, label="BAL: r = -0.123, p = 0.702\nSLC: r = 0.728, p = 0.026", size=4)
+
+CC_Planttypes_inc<-CC_Prefs_inc %>% 
+  filter(variable=="Plant types")
+
+ggplot(subset(CC_Prefs_inc, variable%in%c("Plant types")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_Planttypes_inc, City=="Baltimore"), method="lm", se=F, color="steelblue3")+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("My yard does not have the types of\nplants or trees I prefer")+
+  scale_y_continuous(limits=c(0,1.3), breaks=c(0,1))+ 
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.5, label="BAL: r = 0.519, p = 0.084\nSLC: r = -0.287, p = 0.454", size=4)
+
+#A3 by city: Do you prefer neighborhoods with houses that all look...
 ggplot(subset(S_Prefs_avg, variable%in%c("Similar","Different", "Unsure/Neutral")), aes(x= reorder(variable, Importance), y=Importance)) + 
   coord_flip()+
   geom_bar(stat="identity",fill="goldenrod2" )+ 
@@ -409,7 +286,12 @@ ggplot(subset(B_Prefs_avg, variable%in%c("Similar","Different", "Unsure/Neutral"
         axis.text.y = element_text(color="black",size=15))+
   ggtitle("Baltimore")
 
-#A4-6/A6-8: How important is it to you to have plants that: create variety, have high biodiversity, are native?
+#A3 by income
+cor.test(formula = ~ Importance+Med_Inc,
+         data = S_Prefs_inc,
+         subset=variable=="Unsure/Neutral")
+
+#A4-6/A6-8 by city: How important is it to you to have plants that: create variety, have high biodiversity, are native?
 ggplot(subset(B_Prefs_avg, variable%in%c("Natives","Variety","Biodiversity")), aes(x=reorder(variable, Importance), y=Importance)) + geom_bar(stat="identity", fill="steelblue3")+ 
   coord_flip() + 
   geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
@@ -467,31 +349,15 @@ ggplot(subset(B_Prefs_avg, variable%in%c("Leaf Color","Flower Color","Flower Typ
   ggtitle("Baltimore")
 
 
-#Section A: Landscaping preferences (by income)
-ggplot(subset(CC_Prefs_inc, variable%in%c("Flower Color")), aes(x=Med_Inc, y=Importance, group=City)) + 
-  geom_point(size=3, aes(color=City))+
-  scale_color_manual(values=c("steelblue3","goldenrod2"))+
-  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
-  xlab("Median Neighborhood Income")+
-  ylab("Importance of Color Variety")+
-  ylim(0,3)+
-  theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank(),
-        axis.title.x = element_text(color="black",size=15), 
-        axis.title.y = element_text(color="black", size=15),
-        axis.text.x = element_text(color="black",size=15), 
-        axis.text.y = element_text(color="black",size=15),
-        legend.text=element_text(color="black", size=13),
-        legend.title=element_blank())
-
+#A4-6/A6-8 by income
 cor.test(formula = ~ Importance+Med_Inc,
-         data = B_Prefs_inc,
-         subset=variable=="Flower Color")
+         data = S_Prefs_inc,
+         subset=variable=="Natives")
 
 CC_Variety_inc<-CC_Prefs_inc %>% 
   filter(variable=="Variety")
 
-ggplot(subset(CC_Prefs_inc, variable%in%c("Flower Color")), aes(x=Med_Inc, y=Importance, group=City)) + 
+ggplot(subset(CC_Prefs_inc, variable%in%c("Variety")), aes(x=Med_Inc, y=Importance, group=City)) + 
   geom_point(size=3, aes(color=City))+
   scale_color_manual(values=c("steelblue3","goldenrod2"))+
   geom_smooth(data=subset(CC_Variety_inc, City=="Baltimore"), method="lm", se=F)+
@@ -507,11 +373,7 @@ ggplot(subset(CC_Prefs_inc, variable%in%c("Flower Color")), aes(x=Med_Inc, y=Imp
         axis.text.y = element_text(color="black",size=15),
         legend.text=element_text(color="black", size=13),
         legend.title=element_blank())+
-  annotate("text", x=100000, y=0.5, label="BAL: r = 0.725, p = 0.008**\nSLC: r = -0.411, p = 0.271", size=4)
-
-cor.test(formula = ~ Importance+Med_Inc,
-         data = B_Prefs_inc,
-         subset=variable=="Variety")
+  annotate("text", x=100000, y=0.5, label="BAL: r = 0.725, p = 0.008**\nSLC: r = -0.404, p = 0.281", size=4)
 
 ggplot(subset(CC_Prefs_inc, variable%in%c("Biodiversity")), aes(x=Med_Inc, y=Importance, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -529,12 +391,54 @@ ggplot(subset(CC_Prefs_inc, variable%in%c("Biodiversity")), aes(x=Med_Inc, y=Imp
         legend.text=element_text(color="black", size=13),
         legend.title=element_blank())
 
+#A7/A9 by income
 cor.test(formula = ~ Importance+Med_Inc,
-         data = S_Prefs_inc,
-         subset=variable=="Biodiversity")
+         data = B_Prefs_inc,
+         subset=variable=="Plant Shape")
+
+CC_TreeSp_inc<-CC_Prefs_inc %>% 
+  filter(variable=="Tree Species")
+
+ggplot(subset(CC_Prefs_inc, variable%in%c("Tree Species")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_TreeSp_inc, City=="Baltimore"), method="lm", se=F)+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("Importance of Tree Species Variety")+
+  ylim(0,3)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.5, label="BAL: r = 0.622, p = 0.031\nSLC: r = 0.571, p = 0.109", size=4)
+
+ggplot(subset(CC_Prefs_inc, variable%in%c("Plant Shape")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("Importance of Plant Shape Variety")+
+  ylim(0,3)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.5, label="BAL: r = 0.158, p = 0.625\nSLC: r = -0.096, p = 0.807", size=4)
 
 #Section B: Tree Preferences (average)
-#B1: Tree attributes
+summary(m1<-lm(Importance~City*Med_Inc, data= CC_Prefs_inc, subset=(variable=="Reduce night vis")))
+anova(m1)
+
+#B1 by city: Tree attributes
 ggplot(subset(S_Prefs_avg, variable%in%c("Shade","Fruit","Flowers","Play/relax","Wind break","Aroma","Beauty","Habitat")), aes(x=reorder(variable, Importance), y=Importance)) + 
   geom_bar(stat="identity", fill="goldenrod2")+ 
   coord_flip() + 
@@ -565,7 +469,59 @@ ggplot(subset(B_Prefs_avg, variable%in%c("Shade","Fruit","Flowers","Play/relax",
   geom_hline(yintercept = 2, linetype="dotted")+
   ggtitle("Baltimore")
 
-#B2: Tree costs/maintenance
+#B1 by income
+cor.test(formula = ~ Importance+Med_Inc,
+         data = B_Prefs_inc,
+         subset=variable=="Fruit")
+
+CC_Wb_inc<-CC_Prefs_inc %>% 
+  filter(variable=="Wind break")
+
+#for subsetting geom_smooth
+#data=subset(CC_Wb_inc, City=="Salt Lake City"), color="goldenrod2",
+
+ggplot(subset(CC_Prefs_inc, variable%in%c("Fruit")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(method="lm", se=F, aes(color=City))+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se, color=City), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("Provides Fruit")+
+  ylim(0,3)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=2.3, label="BAL: r = -0.677, p = 0.016\nSLC: r = -0.689, p = 0.04", size=4)
+
+#Playing with plotting all 4 significant variables on one graph
+# CC_Att_test<-CC_Prefs_inc %>% 
+#   filter(variable %in%c("Shade","Play/relax")) %>% 
+#   mutate(City_var=paste(City, variable, sep="_"))
+# 
+# ggplot(CC_Att_test, aes(x=Med_Inc, y=Importance, group=City_var)) + 
+#   geom_point(size=3, aes(color=City, shape=variable))+
+#   scale_color_manual(values=c("steelblue3","goldenrod2"))+
+#   geom_smooth(method="lm", se=F, aes(color=City))+
+#   xlab("Median Neighborhood Income")+
+#   ylab("Importance of Tree Attributes")+
+#   ylim(0,3)+
+#   theme(panel.grid.major = element_blank(), 
+#         panel.grid.minor = element_blank(),
+#         axis.title.x = element_text(color="black",size=15), 
+#         axis.title.y = element_text(color="black", size=15),
+#         axis.text.x = element_text(color="black",size=15), 
+#         axis.text.y = element_text(color="black",size=15),
+#         legend.text=element_text(color="black", size=13),
+#         legend.title=element_blank())
+
+
+
+#B2 by city: Tree costs/maintenance
 ggplot(subset(B_Prefs_avg, variable%in%c("Debris", "Reduce night vis","Water use","Sidewalk damage","Blocks views","Pollen","Cost")), aes(x=reorder(variable, Importance), y=Importance)) + 
   geom_bar(stat="identity", fill="steelblue3")+ 
   coord_flip() + 
@@ -596,25 +552,69 @@ ggplot(subset(S_Prefs_avg, variable%in%c("Debris", "Reduce night vis","Water use
   geom_hline(yintercept = 2, linetype="dotted")+
   ggtitle("Salt Lake City")
 
+#B2 by income
+cor.test(formula = ~ Importance+Med_Inc,
+         data = S_Prefs_inc,
+         subset=variable=="Reduce night vis")
 
-#B3 & B4
-CC_B3<-SLC_Surveys %>%
-  select(City, Nb, House_ID, PARCEL_ID, B301, B302) %>% 
-  mutate(Nb=as.character(Nb)) %>% 
-  full_join(BAL_Surveys) %>% 
-  select(City, Nb, House_ID, PARCEL_ID, B301, B302)
+CC_Night_inc<-CC_Prefs_inc %>% 
+  filter(variable=="Reduce night vis")
 
-write.csv(CC_B3, file="CC_B3.csv", row.names = F)
+ggplot(subset(CC_Prefs_inc, variable%in%c("Reduce night vis")), aes(x=Med_Inc, y=Importance, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_Night_inc, City=="Baltimore"), method="lm", se=F)+
+  geom_errorbar(aes(ymin=Importance-se, ymax=Importance+se, color=City), width=0.2)+
+  xlab("Median Neighborhood Income")+
+  ylab("Concern about trees reducing\nnightime visibility")+
+  ylim(0,3)+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.5, label="BAL: r = -0.793, p = 0.002\nSLC: r = -0.267, p = 0.487", size=4)
 
+#B3: Have you ever removed a tree? Why?
+CC_B3_nec<-read.csv("CC_B3_nec.csv")
+
+summary(m1<-lm(per.Unn~City*Med_Inc, data= CC_B3_nec))
+anova(m1)
+
+cor.test(formula = ~ per.Unn+Med_Inc,
+         data = CC_B3_nec,
+         subset = City=="Salt Lake City",
+         method = "pearson")
+
+ggplot(CC_B3_nec, aes(x=Med_Inc, y=per.Unn, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(method="lm", se=F, aes(color=City))+
+  xlab("Median Neighborhood Income")+
+  ylab("Percent nb making 1+ unnecessary tree removals")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())
+
+#B4: What's your favorite tree in your yard?
 CC_B4<-SLC_Surveys %>%
   select(City, Nb, House_ID, PARCEL_ID, B401, B402) %>% 
   mutate(Nb=as.character(Nb)) %>% 
   full_join(BAL_Surveys) %>% 
   select(City, Nb, House_ID, PARCEL_ID, B401, B402)
 
-write.csv(CC_B4, file="CC_B4.csv", row.names = F)
+#write.csv(CC_B4, file="CC_B4.csv", row.names = F)
 
 #Fertilizer application: lawn co. or personal (C5-601 / D1-2)
+#NOTE- this dataframe is slightly different from the SLC paper's. For some reason a couple houses got dropped from most nb's, slightlt altering the p-values but not the overall correlation
 CC_LawnCo_F<-BAL_Surveys %>% 
   select(City, C5) %>% 
   mutate(D1=C5) %>% 
@@ -625,15 +625,109 @@ CC_LawnCo_F<-BAL_Surveys %>%
   group_by(City, Lawn_Co) %>% 
   summarize(n=length(Lawn_Co))
 
+CC_LawnCo_F_inc<-BAL_Surveys %>% 
+  select(City, Nb, C5) %>% 
+  mutate(D1=C5) %>% 
+  select(-C5) %>% 
+  full_join(SLC_Surveys) %>% 
+  left_join(CC_nbinfo) %>% 
+  select(City, Nb, Med_Inc, D1) %>% 
+  mutate(Lawn_Co= as.numeric(as.character(D1))) %>% 
+  group_by(City, Med_Inc) %>% 
+  summarize(avg.Lawn_Co=mean(Lawn_Co, na.rm=T),
+            sd=sd(Lawn_Co, na.rm=T),
+            n=length(Lawn_Co[!is.na(Lawn_Co)]))%>%
+  mutate(se=sd/sqrt(n))
+
+cor.test(formula = ~ avg.Lawn_Co+Med_Inc,
+         data = CC_LawnCo_F_inc,
+         subset = City=="Baltimore")
+
+summary(m1<-lm(avg.Lawn_Co~City*Med_Inc, data= CC_LawnCo_F_inc))
+anova(m1)
+
+ggplot(CC_LawnCo_F_inc, aes(x=Med_Inc, y=avg.Lawn_Co, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_LawnCo_F_inc, City=="Salt Lake City"), method="lm", se=F, color="goldenrod2")+
+  ylim(0,1)+
+  xlab("Median Neighborhood Income")+
+  ylab("Proportion nb hiring professionals\nto fertilize lawn")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.85, label="BAL: r = 0.436, p = 0.157\nSLC: r = 0.804, p = 0.009", size=4)
+
 CC_Personal_F<-BAL_Surveys %>% 
   select(City, C601) %>% 
   mutate(D2=C601) %>% 
   select(-C601) %>% 
   full_join(SLC_Surveys) %>% 
   select(City, D2) %>% 
-  mutate(Personally=as.character(D2)) %>% 
-  group_by(City, Personally) %>% 
-  summarize(n=length(Personally))
+  group_by(City) %>% 
+  mutate(Personally=as.character(D2),
+         tot_responses=length(City)) %>% 
+  group_by(City, tot_responses, Personally) %>% 
+  summarize(num_resp=length(Personally)) %>% 
+  mutate(per_resp=num_resp/tot_responses)
+
+ggplot(subset(CC_Personal_F, Personally%in%c("1")), aes(x=City, y=per_resp)) + 
+  geom_bar(stat="identity", aes(fill=City))+ 
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+
+  ylim(0,1)+
+  ylab("Percent that fertilize personally")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.title = element_blank(),
+        legend.text = element_blank(),
+        legend.position="none")
+
+CC_Perso_F_inc<-BAL_Surveys %>% 
+  select(City, Nb, C601) %>% 
+  mutate(D2=C601) %>% 
+  select(-C601) %>% 
+  full_join(SLC_Surveys) %>% 
+  left_join(CC_nbinfo) %>% 
+  select(City, Nb, Med_Inc, D2) %>% 
+  mutate(Personally= as.numeric(as.character(D2))) %>% 
+  group_by(City, Med_Inc) %>% 
+  summarize(avg.Personally=mean(Personally, na.rm=T),
+            sd=sd(Personally, na.rm=T),
+            n=length(Personally[!is.na(Personally)]))%>%
+  mutate(se=sd/sqrt(n))
+
+cor.test(formula = ~ avg.Personally+Med_Inc,
+         data = CC_Perso_F_inc,
+         subset = City=="Baltimore")
+
+summary(m1<-lm(avg.Personally~City*Med_Inc, data= CC_Perso_F_inc))
+anova(m1)
+
+ggplot(CC_LawnCo_F_inc, aes(x=Med_Inc, y=avg.Lawn_Co, group=City)) + 
+  geom_point(size=3, aes(color=City))+
+  scale_color_manual(values=c("steelblue3","goldenrod2"))+
+  geom_smooth(data=subset(CC_LawnCo_F_inc, City=="Salt Lake City"), method="lm", se=F, color="goldenrod2")+
+  ylim(0,1)+
+  xlab("Median Neighborhood Income")+
+  ylab("Proportion nb hiring professionals\nto fertilize lawn")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.text=element_text(color="black", size=13),
+        legend.title=element_blank())+
+  annotate("text", x=100000, y=0.85, label="BAL: r = 0.436, p = 0.157\nSLC: r = 0.804, p = 0.009", size=4)
 
 #CC_Both_F counts the number of people that said yes they fertilize personally plus pay for a lawn company (eeven though they wee uspposed to skip that question...it's a very small number of people aynway)
 CC_Both_F<-BAL_Surveys %>% 
@@ -652,6 +746,7 @@ CC_Both_F<-BAL_Surveys %>%
 #Direct links between preferences and yard biodiversity
 ggplot(BAL_Direct, aes(x=Flower_Color, y =c.rich))+
   geom_point(position=position_jitter(0.15),size=3, color="steelblue3")+
+  geom_smooth(method="lm", se=F, color="steelblue3")+
   theme(panel.grid.major = element_blank(), 
         panel.grid.minor = element_blank(),
         axis.title.x = element_text(color="black",size=15), 
@@ -661,7 +756,7 @@ ggplot(BAL_Direct, aes(x=Flower_Color, y =c.rich))+
   xlab("Importance of Color Variety")+
   ylab("Number of Flower Colors")+
   ylim(0,21)+
-  annotate("text", x=1.2, y=19, label="r = 0.123, p = 0.276", size=6)+
+  annotate("text", x=1.2, y=19, label="r = 0.202, p = 0.050", size=6)+
   ggtitle("Baltimore")
 
 cor.test(formula = ~ Flower_Color+c.rich,
@@ -679,7 +774,7 @@ ggplot(BAL_Direct, aes(x=Biodiversity, y =f.rich))+
   xlab("Importance of Biodiversity")+
   ylab("Flower Genus Richness")+
   ylim(0,35)+
-  annotate("text", x=1, y=34, label="r = 0.270, p = 0.015", size=6)+
+  annotate("text", x=1, y=34, label="r = 0.250, p = 0.015", size=6)+
   ggtitle("Baltimore")
 
 cor.test(formula = ~ Biodiversity+f.rich,
@@ -725,8 +820,7 @@ B_Lawns_nmds<-BAL_Lawns_raw %>%
   left_join(B_nbinfo) %>%
   select(Nb, House_ID, City, Species, Type, nb_inc, F1, F2, B1, B2)
 
-S_Lawns_nmds<-SLC_Lawns_raw
-select(-Type) %>% 
+S_Lawns_nmds<-SLC_Lawns_raw %>% 
   left_join(S_nbinfo) %>% 
   select(Nb, House_ID, City, Species, nb_inc, F1, F2, B1, B2)
 
@@ -736,7 +830,8 @@ CC_Lawns_nmds<-S_Lawns_nmds %>%
   group_by(Nb, City, nb_inc, Species) %>% 
   summarize(mcov=mean(cover, na.rm = T)) %>% 
   filter(Species!="No Lawn",
-         Species!="NO LAWN") %>% 
+         Species!="NO LAWN",
+         Species!="Dead grass") %>% 
   spread(Species, mcov, fill=0)
 
 plots_L<-CC_Lawns_nmds[,1:3]
@@ -767,14 +862,14 @@ ggplot(scores2_L, aes(x=NMDS1, y=NMDS2, color=City))+
         legend.text=element_text(color="black",size=15))
 
 #NMDS Flowers
-S_F_data2<-S_F_data1 %>% 
+S_F_nmds_prep<-S_F_data1 %>% 
   left_join(S_nbinfo) %>%
   group_by(City, Nb, FaGe) %>% 
   summarize(numplants=sum(num_plants)) %>% 
   filter(numplants!=0)
 
 
-B_F_data2<-B_F_data1 %>% 
+B_F_nmds_prep<-B_F_data1 %>% 
   mutate(City="Baltimore",
          Nb=as.character(Nb),
          FaGe=paste(Family, Genus, sep="_"))%>% 
@@ -783,8 +878,8 @@ B_F_data2<-B_F_data1 %>%
   summarize(numplants=sum(num_plants)) %>% 
   filter(numplants!=0)
 
-CC_Flowers_nmds<-S_F_data2 %>% 
-  full_join(B_F_data2) %>% 
+CC_Flowers_nmds<-S_F_nmds_prep %>% 
+  full_join(B_F_nmds_prep) %>% 
   spread(FaGe, numplants, fill=0)
 
 plots_F<-CC_Flowers_nmds[,1:2]
@@ -828,8 +923,7 @@ SLC_Trees_1<-SLC_Trees_raw%>%
   filter(numtrees!=0)
 
 BAL_Trees_1<-BAL_Trees_raw%>% 
-  filter(Species!="no trees") %>% 
-  mutate(City="Baltimore") %>% 
+  filter(Species!="no trees") 
   group_by(City, Nb, House_ID, Species) %>% 
   summarize(num_trees=length(Species)) %>% 
   left_join(B_nbinfo) %>%
@@ -871,72 +965,7 @@ ggplot(scores2_T, aes(x=NMDS1, y=NMDS2, color=City))+
         legend.text=element_text(color="black",size=15))
 
 #Richness and abundance comparisons vs Income and yard area (per city)
-#Richness count function
-richcount<-function(x){
-  x1<-x[x!=0]
-  x2<-unique(x1)
-  length(x2)
-}
 
-abundcount<-function(x){
-  x1<-x[x!=0]
-  length(x1)
-}
-
-#Prepping Baltimore data for richness/abundance
-B_rich_abund<-All_Diversity_House_Balt %>% 
-  mutate(City="Baltimore",
-         Lawn_rich=l.rich,
-         Flower_rich=f.rich,
-         Flower_abund=nplants,
-         Tree_rich=t.rich,
-         Tree_abund=num.trees,
-         Nb=as.character(Nb)) %>% 
-  left_join(B_nbinfo) %>% 
-  select(City, Nb, House_ID, Med_Inc, Lawn_rich, Flower_rich, Flower_abund,Tree_rich, Tree_abund, Med_Inc)
-
-#Prepping SLC data for richness/abundance
-S_Lawns_rich<-SLC_Lawns_raw%>% 
-  mutate(Species=ifelse(Species=="No Lawn",0, as.character(Species)),
-         House_ID=as.character(House_ID),
-         Nb=as.character(Nb))%>%
-  group_by(City, Nb, House_ID) %>% 
-  summarize(Lawn_rich=ABcount(Species))
-
-S_Trees_richabund<-SLC_Trees_raw %>% 
-  mutate(Species=ifelse(Species=="",0, as.character(Species)),
-         House_ID=as.character(House_ID))%>%
-  group_by(City, Nb, House_ID) %>% 
-  summarize(Tree_rich=richcount(Species),
-            Tree_abund=abundcount(Species)) %>% 
-  left_join(S_nbinfo) %>% 
-  select(City, Nb, House_ID, Med_Inc,Tree_rich, Tree_abund)
-
-S_Flowers_richabund<-S_F_data1 %>% 
-  mutate(FaGe=ifelse(FaGe=="NoFlowers_NoFlowers",0, as.character(FaGe)),
-         House_ID=as.character(House_ID)) %>% 
-  group_by(City, Nb, House_ID) %>% 
-  summarize(Flower_rich=ABcount(FaGe),
-            Flower_abund=sum(num_plants)) %>% 
-  select(City, Nb, House_ID, Flower_rich, Flower_abund)
-
-S_rich_abund<-merge(S_Lawns_rich, S_Trees_richabund) %>% 
-  full_join(S_Flowers_richabund)
-
-#Both cities data prep/merge for richness/abundance
-B_parcels<-read.csv("BAL_YardArea_200413.csv") %>% 
-  mutate(Home_Value=HOME_VALUE,
-         City="Baltimore") %>% 
-  select(City, House_ID, Home_Value)
-
-CC_HomeValue<-S_parcels %>% 
-  mutate(City="Salt Lake City") %>% 
-  full_join(B_parcels) %>% 
-  select(City, House_ID, Home_Value)
-
-CC_rich_abund<-B_rich_abund %>% 
-  full_join(S_rich_abund) %>% 
-  left_join(CC_HomeValue)
 
 #Richness by home value
 ggplot(CC_rich_abund, aes(x=Home_Value, y=Lawn_rich, group=City)) + 
@@ -953,11 +982,11 @@ ggplot(CC_rich_abund, aes(x=Home_Value, y=Lawn_rich, group=City)) +
         legend.position="none",
         axis.text.y = element_text(color="black",size=15),
         legend.title=element_blank())+
-  annotate("text", x=780000, y=25, label="BAL: r = -0.173, p = 0.132\nSLC: r = -0.390, p < 0.001", size=3.5)
+  annotate("text", x=780000, y=25, label="BAL: r = -0.177, p = 0.105\nSLC: r = -0.390, p < 0.001", size=3.5)
 
 cor.test(formula = ~ Home_Value+Lawn_rich,
          data = CC_rich_abund,
-         subset=City=="Baltimore")
+         subset=City=="Salt Lake City")
 
 ggplot(CC_rich_abund, aes(x=Home_Value, y=Flower_rich, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -973,11 +1002,11 @@ ggplot(CC_rich_abund, aes(x=Home_Value, y=Flower_rich, group=City)) +
         axis.text.y = element_text(color="black",size=15),
         legend.title=element_blank())+
   geom_smooth(method="lm", se=F, aes(color=City))+
-  annotate("text", x=780000, y=27, label="BAL: r = 0.323, p = 0.002\nSLC: r = 0.306, p = 0.006", size=3.5)
+  annotate("text", x=780000, y=27, label="BAL: r = 0.323, p = 0.002\nSLC: r = 0.311, p = 0.006", size=3.5)
 
 cor.test(formula = ~ Home_Value+Flower_rich,
          data = CC_rich_abund,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
 ggplot(CC_rich_abund, aes(x=Home_Value, y=Tree_rich, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -993,11 +1022,11 @@ ggplot(CC_rich_abund, aes(x=Home_Value, y=Tree_rich, group=City)) +
         legend.title=element_blank(),
         legend.text=element_text(color="black", size=12))+
   geom_smooth(method="lm", se=F, aes(color=City))+
-  annotate("text", x=780000, y=4, label="BAL: r = 0.552, p < 0.001\nSLC: r = 0.357, p = 0.001", size=3.5)
+  annotate("text", x=780000, y=4, label="BAL: r = 0.530, p < 0.001\nSLC: r = 0.357, p = 0.001", size=3.5)
 
 cor.test(formula = ~ Home_Value+Tree_rich,
          data = CC_rich_abund,
-         subset=City=="Baltimore")
+         subset=City=="Salt Lake City")
 
 #Abundance by home value
 ggplot(CC_rich_abund, aes(x=Home_Value, y=Flower_abund, group=City)) + 
@@ -1014,11 +1043,11 @@ ggplot(CC_rich_abund, aes(x=Home_Value, y=Flower_abund, group=City)) +
         axis.text.y = element_text(color="black",size=15),
         legend.title=element_blank())+
   geom_smooth(method="lm", se=F, aes(color=City))+
-  annotate("text", x=780000, y=200, label="BAL: r = 0.365, p < 0.001\nSLC: r = 0.341, p = 0.002", size=3.5)
+  annotate("text", x=780000, y=200, label="BAL: r = 0.355, p < 0.001\nSLC: r = 0.341, p = 0.002", size=3.5)
 
 cor.test(formula = ~ Home_Value+Flower_abund,
          data = CC_rich_abund,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
 ggplot(CC_rich_abund, aes(x=Home_Value, y=Tree_abund, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -1034,36 +1063,13 @@ ggplot(CC_rich_abund, aes(x=Home_Value, y=Tree_abund, group=City)) +
         legend.title=element_blank(),
         legend.text=element_text(color="black", size=12))+
   geom_smooth(method="lm", se=F, aes(color=City))+
-  annotate("text", x=780000, y=, label="BAL: r = 0.598, p < 0.001\nSLC: r = 0.361, p = 0.001", size=3.5)
+  annotate("text", x=780000, y=, label="BAL: r = 0.557, p < 0.001\nSLC: r = 0.361, p = 0.001", size=3.5)
 
 cor.test(formula = ~ Home_Value+Tree_abund,
          data = CC_rich_abund,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
-#Richness by median nb income data prep
-CC_ra_MedInc<-CC_rich_abund %>% 
-  filter(Med_Inc!="NA") %>% 
-  group_by(City, Med_Inc) %>% 
-  summarize(Lawn_rich_avg=mean(Lawn_rich, na.rm=T),
-            Flower_rich_avg=mean(Flower_rich),
-            Flower_abund_avg=mean(Flower_abund),
-            Tree_rich_avg=mean(Tree_rich),
-            Tree_abund_avg=mean(Tree_abund),
-            sd_LRA=sd(Lawn_rich, na.rm=T),
-            n_LRA=length(Lawn_rich[!is.na(Lawn_rich)]),
-            sd_FRA=sd(Flower_rich),
-            n_FRA=length(Flower_rich[!is.na(Flower_rich)]),
-            sd_FAA=sd(Flower_abund),
-            n_FAA=length(Flower_abund[!is.na(Flower_abund)]),
-            sd_TRA=sd(Tree_rich),
-            n_TRA=length(Tree_rich[!is.na(Tree_rich)]),
-            sd_TAA=sd(Tree_abund),
-            n_TAA=length(Tree_abund[!is.na(Tree_abund)])) %>% 
-  mutate(se_LRA=sd_LRA/sqrt(n_LRA),
-         se_FRA=sd_FRA/sqrt(n_FRA),
-         se_FAA=sd_FAA/sqrt(n_FAA),
-         se_TRA=sd_TRA/sqrt(n_TRA),
-         se_TAA=sd_TAA/sqrt(n_TAA))
+
 
 #Richness by nb median income figures
 ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Lawn_rich_avg, group=City)) + 
@@ -1085,7 +1091,7 @@ ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Lawn_rich_avg, group=City)) +
 
 cor.test(formula = ~ Med_Inc+Lawn_rich_avg,
          data = CC_ra_MedInc,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
 ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Flower_rich_avg, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -1127,7 +1133,7 @@ ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Tree_rich_avg, group=City)) +
 
 cor.test(formula = ~ Med_Inc+Tree_rich_avg,
          data = CC_ra_MedInc,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
 #Abundance by Median Income figures
 ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Flower_abund_avg, group=City)) + 
@@ -1149,7 +1155,7 @@ ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Flower_abund_avg, group=City)) +
 
 cor.test(formula = ~ Med_Inc+Flower_abund_avg,
          data = CC_ra_MedInc,
-         subset=City=="Salt Lake City")
+         subset=City=="Baltimore")
 
 ggplot(CC_ra_MedInc, aes(x=Med_Inc, y=Tree_abund_avg, group=City)) + 
   geom_point(size=3, aes(color=City))+
@@ -1172,30 +1178,22 @@ cor.test(formula = ~ Med_Inc+Tree_abund_avg,
          data = CC_ra_MedInc,
          subset=City=="Baltimore")
 
-#SLC rank abundance curves
-
-
-#############################################################
-
-
-#Non-cleaned code: most of this code is copied directly from SLC analyses, so may be some filters, etc. that got carried over that aren't actually applicable or necessary. 
-
 #Flower and grass divergences (Figure 5 in SLC paper) 
 Toplot.FL_Balt<-All_Diversity_House_Balt %>% 
   filter(l.rich!="NA") %>% 
-  left_join(nb_info_Balt) %>% 
-  select(Nb, House_ID, med_inc,l.rich, f.rich)
+  left_join(B_nbinfo) %>% 
+  select(Nb, House_ID, Med_Inc,l.rich, f.rich)
 
-PlotFL_melt.B<-melt(Toplot.FL_Balt, id=c("Nb","House_ID","med_inc"))%>%
+PlotFL_melt.B<-melt(Toplot.FL_Balt, id=c("Nb","House_ID","Med_Inc"))%>%
   mutate(variable=recode(variable, l.rich="Lawn"),
          variable=recode(variable, f.rich="Flowers")) %>% 
-  group_by(Nb,variable, med_inc)%>%
+  group_by(Nb,variable, Med_Inc)%>%
   summarize(Num.Species = mean(as.numeric(value, na.rm=T)),
             sd=sd(as.numeric(value, na.rm=T)),
             n=length(value[!is.na(value)]))%>%
   mutate(se=sd/sqrt(n))
 
-ggplot(data = PlotFL_melt.B, aes(x=med_inc, y = Num.Species, group=variable))+
+ggplot(data = PlotFL_melt.B, aes(x=Med_Inc, y = Num.Species, group=variable))+
   geom_point(size=3, aes(color=variable))+
   geom_errorbar(aes(ymin=Num.Species-se, ymax=Num.Species+se, color=variable), width=0.2)+
   guides(color=guide_legend(reverse=TRUE))+
@@ -1213,7 +1211,7 @@ ggplot(data = PlotFL_melt.B, aes(x=med_inc, y = Num.Species, group=variable))+
         legend.position = "none")
 
 #Turf, and weed divergences (Figure 5 in SLC paper)
-Toplot.TW_Balt<-Lawns_Balt %>% 
+Toplot.TW_Balt<-BAL_Lawns_raw %>% 
   filter(Species!="No Lawn",
          Type!="") %>% 
   mutate(Type=recode(Type, seedling="Weed"),
@@ -1226,9 +1224,9 @@ Toplot.TW_Balt<-Lawns_Balt %>%
             sd=sd(Num.Species, na.rm=T),
             n=length(Num.Species[!is.na(Num.Species)]))%>%
   mutate(se=sd/sqrt(n)) %>% 
-  left_join(nb_info_Balt)
+  left_join(B_nbinfo)
 
-ggplot(data=Toplot.TW_Balt, aes(x=med_inc, y=Num.Species_avg, group=Type))+
+ggplot(data=Toplot.TW_Balt, aes(x=Med_Inc, y=Num.Species_avg, group=Type))+
   geom_point(size=3, aes(color=Type))+
   geom_errorbar(aes(ymin=Num.Species_avg-se, ymax=Num.Species_avg+se, color=Type), width=0.2)+
   geom_smooth(method="lm", se=F, aes(color=Type))+
@@ -1247,177 +1245,513 @@ ggplot(data=Toplot.TW_Balt, aes(x=med_inc, y=Num.Species_avg, group=Type))+
         legend.position = "none")
 
 
+#RANK ABUNDANCE CURVES
+S_ranks<-read.csv("S_ranks.csv")
+B_ranks<-read.csv("B_ranks.csv")
+
+S_Frank<-S_ranks%>%
+  select(City, type, Species, freq, Frank, Native_UT)%>%
+  filter(Frank<11)
+
+S_Arank<-S_ranks%>%
+  select(City, type, Species, abund, Arank, Native_UT)%>%
+  filter(Arank<11)
+
+B_Frank<-B_ranks%>%
+  select(City, type, Species, freq, Frank, Native_MD)%>%
+  filter(Frank<11)
+
+B_Arank<-B_ranks%>%
+  select(City, type, Species, abund, Arank, Native_MD)%>%
+  filter(Arank<11)
+
+#Lawn RACs
+B_freq_lawn <- 
+  ggplot(data=subset(B_Frank, type=="lawn"), aes(x=Frank, y=freq))+
+  geom_point(size=4, color="steelblue3")+
+  theme()+
+  xlab("Rank")+
+  ylab("Number of Yards Present")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+    annotate("text", x =2.6, y = 79, label='Poa pratensis', size=4)+
+    annotate("text", x =3.8, y = 72, label='Festuca arund.', size=4)+
+    annotate("text", x =4.8, y = 66, label='Trifolium repens', size=4)+
+    annotate("text", x =6, y = 60, label='Cynodon dactylon', size=4)+
+    annotate("text", x =3.8, y = 55, label='Digitaria sang.', size=4)+
+    annotate("text", x =7.5, y = 55, label='Taraxacum off.', size=4)+
+    annotate("text", x =5.4, y = 53, label='Oxalis stricta', size=4)+
+    annotate("text", x =9.2, y = 52, label='Viola pap.', size=4)+
+    annotate("text", x =7.2, y = 47, label='Plantago major', size=4)+
+    annotate("text", x =8.8, y = 42, label='F. rubra', size=4)
+
+B_abund_lawn<-
+  ggplot(data=subset(B_Arank, type=="lawn"), aes(x=Arank, y=abund))+
+    geom_point(size=4, color="steelblue3")+
+    theme()+
+    xlab("Rank")+
+    ylab("Abundance")+
+    scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text.y = element_text(size=15, color="black"),
+          axis.title.y = element_text(size=15, color="black"),
+          axis.text.x = element_text(size=15, color="black"),
+          axis.title.x = element_text(size=15, color="black"))+
+    annotate("text", x =2.6, y = 2180, label='Poa pratensis', size=4)+
+    annotate("text", x =3.8, y = 1286, label='Festuca arund.', size=4)+
+    annotate("text", x =4.8, y = 1050, label='Zoysia japonica', size=4)+
+    annotate("text", x =6.1, y = 910, label='Cynodon dactylon', size=4)+
+    annotate("text", x =3, y = 770, label='Trifolium repens', size=4)+
+    annotate("text", x =5, y = 660, label='F. rubra', size=4)+
+    annotate("text", x =8.8, y = 620, label='Digitaria sang.', size=4)+
+    annotate("text", x =5.5, y = 396, label='Glechoma hederacea', size=4)+
+    annotate("text", x =10.4, y = 362, label='Viola pap.', size=4)+
+    annotate("text", x =8, y = 247, label='Lolium perenne', size=4)
+
+#note- 5 lawn species tied for rank #11 in frequency (9 yards)
+S_freq_lawn <- 
+  ggplot(data=subset(S_Frank, type=="lawn"), aes(x=Frank, y=freq))+
+    geom_point(size=4, color="goldenrod2")+
+    theme()+
+    xlab("Rank")+
+    ylab("Number of Yards Present")+
+    scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text.y = element_text(size=15, color="black"),
+          axis.title.y = element_text(size=15, color="black"),
+          axis.text.x = element_text(size=15, color="black"),
+          axis.title.x = element_text(size=15, color="black"))+
+    annotate("text", x =2.6, y = 79, label='Poa pratensis', size=4)+
+    annotate("text", x =3.8, y = 45, label='Lolium perenne', size=4)+
+    annotate("text", x =4.7, y = 39, label='Taraxacum off.', size=4)+
+    annotate("text", x =5.7, y = 32, label='Festuca rubra', size=4)+
+    annotate("text", x =6.9, y = 27, label='Convolvulus arv.', size=4)+
+    annotate("text", x =7.7, y = 21, label='Festuca arund.', size=4)+
+    annotate("text", x =8.8, y = 17, label='Elymus repens', size=4)+
+    annotate("text", x =9.7, y = 11, label='Medicago lup.', size=4)
+
+S_abund_lawn<-
+  ggplot(data=subset(S_Arank, type=="lawn"), aes(x=Arank, y=abund))+
+    geom_point(size=4, color="goldenrod2")+
+    theme()+
+    xlab("Rank")+
+    ylab("Abundance")+
+    scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+    theme(panel.grid.major = element_blank(), 
+          panel.grid.minor = element_blank(),
+          axis.text.y = element_text(size=15, color="black"),
+          axis.title.y = element_text(size=15, color="black"),
+          axis.text.x = element_text(size=15, color="black"),
+          axis.title.x = element_text(size=15, color="black"))+
+    annotate("text", x =2.6, y = 5480, label='Poa pratensis', size=4)+
+    annotate("text", x =3.2, y = 1600, label='Festuca rubra', size=4, angle=45)+
+    annotate("text", x =4.2, y = 1570, label='Lolium perenne', size=4, angle=45)+
+    annotate("text", x =5.2, y = 1350, label='Festuca arund.', size=4, angle=45)+
+    annotate("text", x =6.2, y = 1300, label='Convolvulus arv.', size=4, angle = 45)+
+    annotate("text", x =7.2, y = 1200, label='Elymus repens', size=4, angle=45)+
+    annotate("text", x =8.2, y = 1200, label='Taraxacum off.', size=4, angle=45)+
+    annotate("text", x =9.2, y = 1200, label='Trifolium repens', size=4, angle=45)+
+    annotate("text", x =10.1, y = 1100, label='Cynodon dact.', size=4, angle=45)+
+    annotate("text", x =10.5, y = 600, label='UNK', size=4, angle=45)
+
+#lawn RAC
+ggdraw()+
+  draw_plot(B_freq_lawn, x=0.036, y=.5, width=.45, height=.5)+
+  draw_plot(B_abund_lawn, x=.5, y=.5, width=.45, height=.5)+
+  draw_plot(S_freq_lawn, x=0.04, y=0, width=.45, height=.5)+
+  draw_plot(S_abund_lawn, x=.5, y=0, width=.45, height=.5)+
+  draw_plot_label(label= c("A","B","C","D"), size=13,
+                  x= c(0.01, 0.51, 0.01, 0.51), y = c(1, 1, 0.5,0.5))
+
+#Tree RACS
+B_freq_tree <- 
+  ggplot(data=subset(B_Frank, type=="tree"), aes(x=Frank, y=freq))+
+  geom_point(size=4, color="steelblue3")+
+  theme()+
+  xlab("Rank")+
+  ylab("Number of Yards Present")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =5.8, y = 24, label='Cornus florida, Lagerstroemia indica.', size=4)+
+  annotate("text", x =5, y = 20, label='Acer palmatum', size=4)+
+  annotate("text", x =7, y = 17.5, label='Acer saccharinum, Ilex Opaca,\nPrunus sp.', size=4)+
+  annotate("text", x =9, y = 13, label='Acer rubrum', size=4)+
+  annotate("text", x =9.4, y = 10, label='Morus alba', size=4)+
+  annotate("text", x =5.5, y = 8, label='Magnolia grand., Syrina sp., Thuja occ.', size=4)
+
+B_abund_tree<-
+  ggplot(data=subset(B_Arank, type=="tree"), aes(x=Arank, y=abund))+
+  geom_point(size=4, color="steelblue3")+
+  theme()+
+  xlab("Rank")+
+  ylab("Abundance")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =2.4, y = 35, label='Ilex Opaca', size=4)+
+  annotate("text", x =3.8, y = 33.5, label='Cornus florida', size=4)+
+  annotate("text", x =7.4, y = 32.2, label='Lagerstroemia indica, Thuja occ.', size=4)+
+  annotate("text", x =7, y = 29, label='Acer palmatum', size=4)+
+  annotate("text", x =4.2, y = 25, label='Ailanthis alt.,Prunus sp.,\nAcer saccharinum', size=4)+
+  annotate("text", x =7.4, y = 18, label='Acer rubrum', size=4)+
+  annotate("text", x =8.8, y = 16.2, label='Acer negundo', size=4)
+
+S_freq_tree <- 
+  ggplot(data=subset(S_Frank, type=="tree"), aes(x=Frank, y=freq))+
+  geom_point(size=4, color="goldenrod2")+
+  theme()+
+  xlab("Rank")+
+  ylab("Number of Yards Present")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =3, y = 39, label='Acer platanoides', size=4)+
+  annotate("text", x =4.5, y =31, label='Populus tremuloides', size=4)+
+  annotate("text", x =4.8, y = 28.8, label='Acer palmatum', size=4)+
+  annotate("text", x =6.1, y = 26.8, label='Malus domestica', size=4)+
+  annotate("text", x =7.2, y = 25, label='Pyrus calleryana', size=4)+
+  annotate("text", x =7.9, y = 22, label='Picea pungens', size=4)+
+  annotate("text", x =8.8, y = 18.7, label='Ulmus pumila', size=4)+
+  annotate("text", x =5.1, y = 17, label='Acer negundo, Picea glauca', size=4)+
+  annotate("text", x =7.1, y = 15, label='Malus hybrid, Prunus cerasus', size=4)
+  
+    
+S_abund_tree<-
+  ggplot(data=subset(S_Arank, type=="tree"), aes(x=Arank, y=abund))+
+  geom_point(size=4, color="goldenrod2")+
+  theme()+
+  xlab("Rank")+
+  ylab("Abundance")+
+  scale_y_continuous(limits=c(20,90), breaks = c(20,30,40,50,60,70,80,90))+
+  scale_x_continuous(limits=c(1,14), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =4, y = 88, label='Populus tremuloides', size=4)+
+  annotate("text", x =4.4, y = 67.5, label='Acer platanoides', size=4)+
+  annotate("text", x =5.6, y = 62.5, label='Quercus gambelii', size=4)+
+  annotate("text", x =2, y = 38, label='Acer palm.', size=4, angle=30)+
+  annotate("text", x =7.8, y = 56, label='Platycladus orientalis', size=4, angle=30)+
+  annotate("text", x =9.4, y = 56, label='Acer negundo,Pyrus cal.', size=4, angle=30)+
+  annotate("text", x =9.5, y = 48, label='Pinus nigra', size=4, angle=30)+
+  annotate("text", x =11, y = 45, label='Picea pungens', size=4, angle=30)+
+  annotate("text", x =12.2, y = 29, label='Picea glauca,\nMalus domestica', size=4)
+  
+#tree RAC
+ggdraw()+
+  draw_plot(B_freq_tree, x=0.036, y=.5, width=.45, height=.5)+
+  draw_plot(B_abund_tree, x=.5, y=.5, width=.45, height=.5)+
+  draw_plot(S_freq_tree, x=0.04, y=0, width=.45, height=.5)+
+  draw_plot(S_abund_tree, x=.5, y=0, width=.45, height=.5)+
+  draw_plot_label(label= c("A","B","C","D"), size=13,
+                  x= c(0.01, 0.51, 0.01, 0.51), y = c(1, 1, 0.5,0.5))
+
+#Flower RACS
+#note- there's a 4-way tie for 11.5 rank
+B_freq_flow <- 
+  ggplot(data=subset(B_Frank, type=="floral"), aes(x=Frank, y=freq))+
+  geom_point(size=4, color="steelblue3")+
+  theme()+
+  xlab("Rank")+
+  ylab("Number of Yards Present")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =2.8, y = 37, label='Hydrangea', size=4)+
+  annotate("text", x =3, y = 32, label='Rosa', size=4)+
+  annotate("text", x =4.5, y = 26.5, label='Rudbeckia', size=4)+
+  annotate("text", x =5.2, y = 24, label='Hosta', size=4)+
+  annotate("text", x =6.6, y = 16, label='Echinacea', size=4)+
+  annotate("text", x =4, y = 12, label='Hemerocallis, Tagetes', size=4)+
+  annotate("text", x =9.3, y = 13.5, label='Impatiens', size=4)+
+  annotate("text", x =10.2, y = 11, label='Salvia', size=4)
+
+B_abund_flow<-
+  ggplot(data=subset(B_Arank, type=="floral"), aes(x=Arank, y=abund))+
+  geom_point(size=4, color="steelblue3")+
+  theme()+
+  xlab("Rank")+
+  ylab("Abundance")+
+  scale_x_continuous(limits=c(1,13), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =3.2, y = 223, label='Catharanthus', size=4)+
+  annotate("text", x =3.3, y = 193, label='Hemerocallis', size=4)+
+  annotate("text", x =4.9, y = 180, label='Rudbeckia', size=4)+
+  annotate("text", x =5.2, y = 157, label='Hosta', size=4)+
+  annotate("text", x =4.5, y = 127, label='Hydrangea', size=4)+
+  annotate("text", x =7.5, y = 117, label='Impatiens', size=4)+
+  annotate("text", x =8.8, y = 107, label='Echinacea', size=4)+
+  annotate("text", x =9.2, y = 95, label='Rosa', size=4)+
+  annotate("text", x =7, y = 78, label='Lysimachia', size=4)+
+  annotate("text", x =11.5, y = 76, label='Begonia', size=4)
+
+S_freq_flow <- 
+  ggplot(data=subset(S_Frank, type=="floral"), aes(x=Frank, y=freq))+
+  geom_point(size=4, color="goldenrod2")+
+  theme()+
+  xlab("Rank")+
+  ylab("Number of Yards Present")+
+  scale_x_continuous(limits=c(1,11), breaks = c(1:10))+
+  scale_y_continuous(limits=c(7,45), breaks = c(10, 20, 30, 40))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =2.1, y = 43, label='Rosa', size=4)+
+  annotate("text", x =3, y =31, label='Salvia', size=4)+
+  annotate("text", x =4.7, y = 27, label='Hemerocallis', size=4)+
+  annotate("text", x =5.5, y = 22, label='Lavandula', size=4)+
+  annotate("text", x =6.3, y = 19, label='Hibiscus, Petunia, Sedum', size=4)+
+  annotate("text", x =7.1, y = 14, label='Hosta', size=4)+
+  annotate("text", x =9.7, y = 16, label='Perovskia', size=4)+
+  annotate("text", x =8.8, y = 10, label='Dianthus, Echinacea', size=4)
 
 
+S_abund_flow<-
+  ggplot(data=subset(S_Arank, type=="floral"), aes(x=Arank, y=abund))+
+  geom_point(size=4, color="goldenrod2")+
+  theme()+
+  xlab("Rank")+
+  ylab("Abundance")+
+  scale_x_continuous(limits=c(1,11.5), breaks = c(1:10))+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.text.y = element_text(size=15, color="black"),
+        axis.title.y = element_text(size=15, color="black"),
+        axis.text.x = element_text(size=15, color="black"),
+        axis.title.x = element_text(size=15, color="black"))+
+  annotate("text", x =2.2, y = 438, label='Petunia', size=4)+
+  annotate("text", x =3.2, y = 255, label='Tagetes', size=4)+
+  annotate("text", x =4.1, y = 216, label='Rosa', size=4)+
+  annotate("text", x =2.5, y = 110, label='Geranium,\nHemerocallis', size=4)+
+  annotate("text", x =6.3, y = 115, label='Salvia', size=4, angle=30)+
+  annotate("text", x =7.5, y = 115, label='Lobelia', size=4, angle=30)+
+  annotate("text", x =8.8, y = 115, label='Alyssum', size=4, angle=30)+
+  annotate("text", x =10.8, y = 95, label='Sedum,\nZinnia', size=4, angle=30)
 
-#Yard Colors
-pie.test.1.B<-data1.B%>%
-  filter(color1!="NoFlowers"&color1!="NoPhoto")%>%
-  mutate(Color_area=(ifelse(color2!="", 0.5*TotalFlower_area,1*TotalFlower_area)))%>%
-  left_join(nb_info_Balt)%>%
-  select(Nb, House_ID, color1, color2,Color_area, nb_inc)
-
-##across
-pie.across.B<-melt(pie.test.1.B, id=c("Nb","House_ID","Color_area","nb_inc"))%>%
-  filter(value!=""&value!="brown")%>%
-  mutate(nb_inc=recode(nb_inc, low="Low"),
-         nb_inc=recode(nb_inc, mid="Mid"),
-         nb_inc=recode(nb_inc, high="High"),
-         value=recode(value, blue="Blue")) %>% 
-  group_by(value, nb_inc)%>%
-  summarize(Sum_colarea=sum(Color_area, na.rm=T))
-
-,
-value=recode(value, Purple="Purple"),
-value=recode(value, red-purple="Red-Purple"),
-value=recode(value, red="Red"),
-value=recode(value, red-orange="Red-Orange"),
-value=recode(value, orange="Orange"),
-value=recode(value, yellow-orange="Yellow_orange"),
-value=recode(value, yellow="Yellow"),
-value=recode(value, green-yellow="Green-Yellow"),
-value=recode(value, green="Green"),
-value=recode(value, white="White")
-
-
-pie.across.B$value<-factor(pie.across.B$value, levels = c("Blue","purple-blue", "purple","red-purple", "red", "red-orange","orange","yellow-orange","yellow", "green-yellow", "green", "white"))
+#Flower RAC
+ggdraw()+
+  draw_plot(B_freq_flow, x=0.036, y=.5, width=.45, height=.5)+
+  draw_plot(B_abund_flow, x=.5, y=.5, width=.45, height=.5)+
+  draw_plot(S_freq_flow, x=0.04, y=0, width=.45, height=.5)+
+  draw_plot(S_abund_flow, x=.5, y=0, width=.45, height=.5)+
+  draw_plot_label(label= c("A","B","C","D"), size=13,
+                  x= c(0.01, 0.51, 0.01, 0.51), y = c(1, 1, 0.5,0.5))
 
 
-pie.across.B$nb_inc<-factor(pie.across.B$nb_inc, levels = c("Low", "Mid", "High"))
+#Tree traits
+CC_TT_avg<-read.csv("CC_TT_avg.csv")
 
-##all together
-point <- format_format(big.mark = ",", decimal.mark = ",", scientific = FALSE)
+CC_TT_inc<-read.csv("CC_TT_inc.csv")
 
-ggplot(pie.across.B, aes(x = nb_inc, y=Sum_colarea, fill=value))+
-  geom_bar(color="black", width = 0.75,stat="identity")+
-  scale_y_continuous(labels = point)+
-  scale_fill_manual(values=c("blue", "darkviolet", "purple","violetred3", "red","orangered1","orange","goldenrod1","yellow","yellowgreen","green","white"))+
-  ylab("Color Area (m2)")+
-  xlab("Neighborhood Income")+
-  theme(axis.ticks=element_blank(),
-        legend.title=element_blank(),
-        legend.text=element_text(color="black",size=14),
-        panel.grid=element_blank(),
-        axis.title.x = element_text(color="black",size=20), 
-        axis.title.y = element_text(color="black", size=20),
+CC_TT_char<-read.csv("CC_TT_char.csv")
+
+CC_TT_nb<-read.csv("CC_TT_nb.csv")
+
+#CC_TT_char
+CC_TFam<-CC_TT_char %>% 
+  group_by(City) %>% 
+  mutate(tot_abund=length(City)) %>% 
+  group_by(City, tot_abund, Family) %>% 
+  summarize(abund=length(Family)) %>% 
+  mutate(rank=rank(-abund),
+         per.Fam=abund/tot_abund)
+
+CC_Tdecid<-CC_TT_char %>% 
+  mutate(decid=as.character(decid)) %>% 
+  group_by(City) %>% 
+  mutate(tot_abund=length(City)) %>% 
+  group_by(City, tot_abund, decid) %>% 
+  summarize(abund=length(decid)) %>% 
+  mutate(per.decid=abund/tot_abund)
+
+ggplot(subset(CC_Tdecid, decid%in%c("evergreen")), aes(x= City, y=abund)) + 
+  geom_bar(stat="identity", aes(fill=City))+ 
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+ 
+  ylab("Abundance of evergreens")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15))
+
+CC_Tcont<-CC_TT_char %>% 
+  group_by(City) %>% 
+  mutate(tot_abund=length(City)) %>% 
+  group_by(City, tot_abund, Continent) %>% 
+  summarize(abund=length(Continent)) %>% 
+  mutate(per.cont=abund/tot_abund)
+
+ggplot(subset(CC_Tcont, Continent%in%c("North America")), aes(x= City, y=per.cont)) + 
+  geom_bar(stat="identity", aes(fill=City))+ 
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+ 
+  ylab("% Trees from North America")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15))
+
+#CC_TT ANOVA
+summary(m1<-lm(mean_score~City*Front_Back*Med_Inc, data= CC_TT_nb, subset=(trait=="water")))
+anova(m1)
+
+#CC_TT_avg
+ggplot(subset(CC_TT_avg, City%in%c("Salt Lake City")), aes(x=reorder(trait, mean_score), y=mean_score)) + 
+  geom_bar(stat="identity", fill="goldenrod2")+ 
+  coord_flip() + 
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  xlab("")+
+  ylab("Average Tree Trait")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
         axis.text.x = element_text(color="black",size=20), 
-        axis.text.y = element_text(color="black",size=20))
+        axis.text.y = element_text(color="black",size=13, angle=+18))
 
-
-
-#Front/Back Differences
-FBflower_sums<-data1.B%>%
-  group_by(Nb, House_ID, Front.Back)%>%
-  summarize(total_plants = sum(num_plants),
-            total_flower = sum(num_flowers),
-            total_area = sum(TotalFlower_area, na.rm=T),
-            total_genera = length(Genus))%>%
-  group_by(Nb, Front.Back)%>%
-  summarize(plants=mean(total_plants),
-            sd.plants=sd(total_plants),
-            n.plants=length(total_plants),
-            flowers=mean(total_flower),
-            area=mean(total_area),
-            richnessAB=mean(total_genera))%>%
-  mutate(se.plants=sd.plants/sqrt(n.plants))%>%
-  left_join(nb_info_Balt)
-
-ggplot(data = FBflower_sums, aes(x=med_inc, y = plants, group=Front.Back))+
-  geom_point(size=3, aes(color=Front.Back))+
-  geom_errorbar(aes(ymin=plants-se.plants, ymax=plants+se.plants, color=Front.Back), width=0.2)+
-  geom_smooth(method="lm", se=F, aes(color=Front.Back))+
-  guides(color=guide_legend(reverse=TRUE))+
-  xlab("Median Neighborhood Income (Baltimore)")+
-  ylab("Number Flowering Plants")+
-  scale_color_manual(values=c("blue","sienna3"))+
+ggplot(subset(CC_TT_avg, trait%in%c("Height")), aes(x=City, y=mean_score)) + 
+  geom_bar(stat="identity", aes(fill=City))+ 
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  ylab("Height")+
   theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=15), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.title = element_blank(),
+        legend.text = element_blank(),
+        legend.position="none")
 
-#Lawn vs Flower Richness
-Toplot.Flow.R<-community_structure(rich_calc.1, abundance.var= "FaGe.sum", replicate.var="House_ID")%>%
-  select(-Evar)%>%
-  left_join(nb_link.B)
+#CC_TT_FB
+CC_TT_FB1<-read.csv("CC_TT_FB1.csv")
+CC_TT_FB2<-read.csv("CC_TT_FB2.csv")
 
-###lawn richness
-lawn.B<-read.csv("Lawn Quadrats_Balt18_072519.csv")
+S_TT_FB2<-CC_TT_FB2 %>% 
+  filter(City=="Salt Lake City")
 
-lawn2.B<-subset(lawn.B, Species.combined!="NO LAWN"&Species.combined!="Not collected")%>%
-  mutate(AveCovF = (F1+F2)/2,
-         AveCovB = (B1+B2)/2)
+B_TT_FB2<-CC_TT_FB2 %>% 
+  filter(City!="Salt Lake City")
 
-lawn2.B$AveCovAll<-rowMeans(lawn2.B[c("AveCovB", "AveCovF")], na.rm = T)
-
-Toplot.Lawn.R<-lawn2.B%>%
-  group_by(Nb, House_ID)%>%
-  summarize(Lawnrich=length(unique(Species.combined)))
-
-###flower lawn rich combined
-Toplot.LF<-merge(Toplot.Lawn.R, Toplot.Flow.R, by=c("Nb","House_ID"), all=T)
-Toplot.LF[is.na(Toplot.LF)]<-0
-PlotLF_melt<-melt(Toplot.LF, id=c("Nb","House_ID"))%>%
-  group_by(Nb,variable)%>%
-  summarize(Num.Species = mean(as.numeric(value)),
-            sd=sd(as.numeric(value)),
-            n=length(as.numeric(value)))%>%
-  mutate(se=sd/sqrt(n)) %>% 
-  left_join(nb_info_Balt)%>%
-  mutate(variable=recode(variable, Lawnrich="Lawn"),
-         variable=recode(variable, richness="Flowers"))
-
-ggplot(data = PlotLF_melt, aes(x=med_inc, y = Num.Species, group=variable))+
-  geom_point(size=3, aes(color=variable))+
-  geom_errorbar(aes(ymin=Num.Species-se, ymax=Num.Species+se, color=variable), width=0.2)+
-  guides(color=guide_legend(reverse=TRUE))+
-  geom_smooth(method="lm", se=F, aes(color=variable))+
-  xlab("Median Neighborhood Income (Baltimore)")+
-  ylab("Species/Genus Richness")+
-  scale_color_manual(values=c("green4","mediumvioletred"))+
+SF<-ggplot(subset(S_TT_FB2, Front_Back%in%c("F")), aes(x=trait, y=mean_score)) + 
+  geom_bar(stat="identity", fill="goldenrod2")+ 
+  coord_flip() + 
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  xlab("")+
+  ylab("Average Tree Trait")+
   theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.text.x = element_text(color="black",size=20), 
+        axis.text.y = element_text(color="black",size=13, angle=+18))+
+  ggtitle("SLC Front")+
+  geom_hline(yintercept = 0.5, linetype="dotted")
 
-#Lawn and weeds richness
-##STILL WORKING ON THIS ONE, FINISH UP TWEAKING
-Grass.Weed.R<-lawn2.B%>%
-  mutate(Type=recode(Type, seedling="Weed"),
-         Type=recode(Type, lawn="Turf Grass"),
-         House_ID=as.character(House_ID))%>%
-  group_by(House_ID, Type)%>%
-  summarize(Type.sum=length(unique(Species.combined)))%>%
-  left_join(nb_link.B)%>%
-  left_join(nb_info_Balt)%>%
-  group_by(med_inc, Type)%>%
-  summarize(Type.mean=mean(Type.sum),
-            sd=sd(Type.sum),
-            n=length(Type.sum)) %>% 
-  mutate(se=sd/sqrt(n))
-
-ggplot(data=Grass.Weed.R, aes(x=med_inc, y=Type.mean, group=Type))+
-  geom_point(size=3, aes(color=Type))+
-  geom_errorbar(aes(ymin=Type.mean-se, ymax=Type.mean+se, color=Type), width=0.2)+
-  geom_smooth(method="lm", se=F, aes(color=Type))+
-  guides(color=guide_legend(reverse=TRUE))+
-  xlab("Median Neighborhood Income")+
-  ylab("Species Richness")+
-  scale_color_manual(values=c("green4","goldenrod"))+
+SB<-ggplot(subset(S_TT_FB2, Front_Back%in%c("B")), aes(x=trait, y=mean_score)) + 
+  geom_bar(stat="identity", fill="goldenrod2")+ 
+  coord_flip() + 
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  xlab("")+
+  ylab("Average Tree Trait")+
   theme(panel.grid.major = element_blank(), 
-        panel.grid.minor = element_blank())
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.text.x = element_text(color="black",size=20), 
+        axis.text.y = element_text(color="black",size=13, angle=+18))+
+  ggtitle("SLC Back")+
+  geom_hline(yintercept = 0.5, linetype="dotted")
 
+BF<-ggplot(subset(B_TT_FB2, Front_Back%in%c("F")), aes(x=trait, y=mean_score)) + 
+  geom_bar(stat="identity", fill="steelblue3")+ 
+  coord_flip() + 
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  xlab("")+
+  ylab("Average Tree Trait")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.text.x = element_text(color="black",size=20), 
+        axis.text.y = element_text(color="black",size=13, angle=+18))+
+  ggtitle("BAL Front")+
+  geom_hline(yintercept = 0.5, linetype="dotted")
 
+BB<-ggplot(subset(B_TT_FB2, Front_Back%in%c("B")), aes(x=trait, y=mean_score)) + 
+  geom_bar(stat="identity", fill="steelblue3")+ 
+  coord_flip() + 
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  xlab("")+
+  ylab("Average Tree Trait")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_text(color="black",size=15), 
+        axis.text.x = element_text(color="black",size=20), 
+        axis.text.y = element_text(color="black",size=13, angle=+18))+
+  ggtitle("BAL Back")+
+  geom_hline(yintercept = 0.5, linetype="dotted")
 
-#######################################
+ggdraw()+
+  draw_plot(SF, x=0.036, y=.5, width=.45, height=.5)+
+  draw_plot(SB, x=.5, y=.5, width=.45, height=.5)+
+  draw_plot(BF, x=0.04, y=0, width=.45, height=.5)+
+  draw_plot(BB, x=.5, y=0, width=.45, height=.5)+
+  draw_plot_label(label= c("A","B","C","D"), size=13,
+                  x= c(0.01, 0.51, 0.01, 0.51), y = c(1, 1, 0.5,0.5))
 
-
-#Baltimore data read in
-Houses_surveyed<-read.csv("Houses surveyed_DHL.csv") %>% 
-  select(Nb, House, House_ID)
-
-
-Surveys_Balt<-read.csv("2018 Homeowner_Survey Data_081219_Balt.csv")
-Surv_visit.B<-Surveys_Balt %>% 
-  right_join(Houses_surveyed) %>% 
-  select(-Clean, -Notes.Comments) %>% 
-  mutate(City="Baltimore")
-
-
-
-
+ggplot(subset(CC_TT_FB2, trait%in%c("Edible Fruit")), aes(x=City_Loc, y=mean_score)) + 
+  geom_bar(stat="identity", aes(fill=City))+ 
+  scale_fill_manual(values=c("steelblue3","goldenrod2"))+
+  geom_errorbar(aes(ymin=mean_score-se, ymax=mean_score+se), width=0.2)+
+  ylim(0,1)+
+  ylab("Edible Fruit")+
+  theme(panel.grid.major = element_blank(), 
+        panel.grid.minor = element_blank(),
+        axis.title.x = element_blank(), 
+        axis.title.y = element_text(color="black", size=15),
+        axis.text.x = element_text(color="black",size=12, angle=20), 
+        axis.text.y = element_text(color="black",size=15),
+        legend.title = element_blank(),
+        legend.text = element_blank(),
+        legend.position="none")
